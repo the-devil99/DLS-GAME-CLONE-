@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0d1711">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Dream Soccer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="c"></canvas>
+  <header id="hud">
+    <span class="team a" id="ta"><span id="na">You</span> <b id="s0">0</b></span>
+    <span id="clock">2:00</span>
+    <span class="team b" id="tb2"><b id="s1">0</b> <span id="nb">CPU</span></span>
+    <button id="pause">Pause</button>
+  </header>
+  <div id="msg"></div>
+
+  <section id="menu">
+    <h1 id="title">Dream Soccer</h1>
+    <p id="sub">5-a-side. Most goals wins.</p>
+    <div class="row">
+      <label>Your team <select id="kit"></select></label>
+      <label>Match <select id="len"><option value="120">2 min</option><option value="240">4 min</option><option value="360">6 min</option></select></label>
+    </div>
+    <div id="diff">
+      <button data-d="0">Easy</button>
+      <button data-d="1" class="on">Normal</button>
+      <button data-d="2">Hard</button>
+    </div>
+    <button id="start">Kick off</button>
+    <p class="help khelp">Move: WASD or arrows. Shoot: hold Space, release. Pass: E. Lob: Q. Sprint: Shift. Pause: P. Mute: M.</p>
+    <p class="help thelp">Drag anywhere on the left half to move. Hold Shoot, then release for power. Pass and Lob go to a teammate in the direction you are moving.</p>
+  </section>
+
+  <div id="touch">
+    <div id="zone"></div>
+    <div id="stick"><div id="knob"></div></div>
+    <button id="bShoot">Shoot</button>
+    <button id="bPass">Pass</button>
+    <button id="bLob">Lob</button>
+    <button id="bRun">Sprint</button>
+  </div>
+  <div id="rot"><p>Rotate your phone to landscape to play.</p></div>
+</div>
+<script src="script.js"></script>
+</body>
+</html>
