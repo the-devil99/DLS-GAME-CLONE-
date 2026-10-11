@@ -18,15 +18,15 @@ button{font:inherit;color:inherit;cursor:pointer}
   opacity:0;pointer-events:none;transition:opacity .2s;text-shadow:0 4px 0 rgba(0,0,0,.45);white-space:nowrap}
 #msg.show{opacity:1}
 
-#menu{position:absolute;inset:0;z-index:30;display:grid;place-content:center;justify-items:center;gap:16px;overflow:auto;
+#menu{touch-action:pan-y;position:absolute;inset:0;z-index:30;display:grid;place-content:center;justify-items:center;gap:16px;overflow:auto;
   background:rgba(13,23,17,.94);text-align:center;padding:24px}
 #menu h1{margin:0;font-size:clamp(34px,9vmin,84px);line-height:1}
 #menu p{margin:0;color:var(--mute);max-width:46ch}
 .row{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;color:var(--mute)}
 select{font:inherit;margin-left:6px;padding:6px 10px;background:#16241b;color:var(--ink);border:2px solid #3b5a45;border-radius:6px}
-#diff{display:flex;gap:8px}
-#diff button{padding:8px 18px;border:2px solid #3b5a45;background:none;border-radius:6px}
-#diff button.on{border-color:var(--home);color:var(--home)}
+#diff,#mode{display:flex;gap:8px}
+#diff button,#mode button{padding:8px 18px;border:2px solid #3b5a45;background:none;border-radius:6px}
+#diff button.on,#mode button.on{border-color:var(--home);color:var(--home)}
 #start{padding:12px 36px;font-size:22px;font-weight:700;border:0;border-radius:8px;background:var(--home);color:#161616}
 #start:focus-visible,#diff button:focus-visible,#pause:focus-visible{outline:3px solid #fff;outline-offset:3px}
 .thelp{display:none}
@@ -51,3 +51,15 @@ body.touch #touch{display:block}
 #rot{display:none;position:fixed;inset:0;z-index:40;background:#0d1711;place-content:center;text-align:center;padding:30px;font-size:22px}
 @media (orientation:portrait){body.touch #rot{display:grid}}
 @media (prefers-reduced-motion:reduce){#msg{transition:none}}
+@keyframes pop{0%{transform:translate(-50%,-50%) scale(.4)}60%{transform:translate(-50%,-50%) scale(1.15)}100%{transform:translate(-50%,-50%) scale(1)}}
+#msg.show{animation:pop .35s ease-out}
+.team,#clock{box-shadow:inset 0 -6px 8px rgba(0,0,0,.2),inset 0 5px 6px rgba(255,255,255,.2),0 2px 6px rgba(0,0,0,.4)}
+@media (prefers-reduced-motion:reduce){#msg.show{animation:none}}
+#menu.career #diff{display:none}
+#career{display:grid;gap:8px;justify-items:center}
+#tbl{border-collapse:collapse;font-size:13px}
+#tbl td,#tbl th{padding:2px 9px;text-align:center}
+#tbl tr.me{color:var(--home);font-weight:700}
+#ups{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+#ups button{padding:6px 10px;border:2px solid #3b5a45;background:none;border-radius:6px;font-size:13px}
+#ups button:disabled{opacity:.4;cursor:default}
