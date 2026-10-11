@@ -3,7 +3,8 @@ const $ = id => document.getElementById(id);
 const cv = $('c'), g = cv.getContext('2d');
 const W = 1050, H = 680, PX = 50, PY = 40, GW = 150, CY = H / 2, Z = 1.4;
 const AIK = [.82, .95, 1.08], SAVE = [.35, .55, .72];
-const FORM = [[.05, .5], [.24, .3], [.24, .7], [.45, .35], [.45, .65]];
+const FORMS = { '2-2': [[.05, .5], [.24, .3], [.24, .7], [.45, .35], [.45, .65]], '3-1': [[.05, .5], [.22, .25], [.2, .5], [.22, .75], [.45, .5]], '1-3': [[.05, .5], [.2, .5], [.45, .22], [.47, .5], [.45, .78]] };
+let FM = FORMS['2-2'], stats = { shots: [0, 0], poss: [0, 0] };
 const KITS = [['Falcons', '#ffd23f', '#161616'], ['Harbor', '#2f6bff', '#ffffff'], ['Embers', '#e5383b', '#ffffff'],
   ['Jade', '#1db97a', '#0d1711'], ['Violets', '#8b5cf6', '#ffffff'], ['Frost', '#e8eef2', '#1d4ed8']].map(k => ({ n: k[0], c1: k[1], c2: k[2] }));
 const SKIN = ['#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#ffdbac'];
@@ -11,7 +12,7 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 let keys = {}, stick = { x: 0, y: 0 }, tb = {};
-let paused = 0, VS = 1, VX = 0, VY = 0;
+let paused = 0, VS = 1, VX = 0, VY = 0, shake = 0, FX = [];
 let diff = 1, state = 'menu', tm = 0, time = 120, t0 = 120, fr = 0, cc = 0, stam = 1, muted = 0;
 let score = [0, 0], P = [], ball, ctrl = null, charge = 0, pp = 0, pl = 0, K = [KITS[0], KITS[1]], cam = { x: 0, y: 0 };
 
@@ -62,12 +63,28 @@ function mkPitch() {
   const c = pc.getContext('2d'); c.scale(2, 2); let s = 7; const r = () => (s = s * 16807 % 2147483647) / 2147483647;
   c.fillStyle = '#0b120e'; c.fillRect(0, 0, W, H);
   const cols = ['#e5383b', '#ffd23f', '#2f6bff', '#f3f1e8', '#1db97a', '#8b5cf6'];
-  for (let i = 0; i < 3200; i++) {
+  for (let i = 0; i < 6500; i++) {
     const x = r() * W, y = r() * H;
     if (x > PX - 12 && x < W - PX + 12 && y > PY - 12 && y < H - PY + 12) continue;
-    c.globalAlpha = .6; c.fillStyle = cols[r() * 6 | 0]; c.fillRect(x, y, 3, 4);
+    c.globalAlpha = .75; c.fillStyle = cols[r() * 6 | 0]; c.beginPath(); c.arc(x, y, 2.3, 0, 7); c.fill();
   }
-  c.globalAlpha = 1; c.fillStyle = '#d9d4c4'; c.fillRect(PX - 10, PY - 10, W - 2 * PX + 20, H - 2 * PY + 20);
+  c.globalAlpha = .22; c.fillStyle = '#000';
+  for (let y = 2; y < PY - 12; y += 7) c.fillRect(0, y, W, 1.5);
+  for (let y = H - PY + 14; y < H; y += 7) c.fillRect(0, y, W, 1.5);
+  for (let x = 2; x < PX - 12; x += 7) c.fillRect(x, 0, 1.5, H);
+  for (let x = W - PX + 14; x < W; x += 7) c.fillRect(x, 0, 1.5, H);
+  c.globalAlpha = 1;
+  const AD = ['NOVA', 'ARCTIC', 'ZENITH', 'PULSE', 'ORBIT', 'KITE'], ADC = ['#e5383b', '#2f6bff', '#d9a400', '#1db97a', '#8b5cf6', '#f97316'];
+  c.font = 'bold 11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  for (let i = 0; i < 8; i++) {
+    const x = PX + i * (W - 2 * PX) / 8, w = (W - 2 * PX) / 8;
+    [PY - 24, H - PY + 10].forEach(y => { c.fillStyle = ADC[i % 6]; c.fillRect(x + 1, y, w - 2, 14); c.fillStyle = '#fff'; c.fillText(AD[i % 6], x + w / 2, y + 7); });
+  }
+  for (let i = 0; i < 5; i++) {
+    const y = PY + i * (H - 2 * PY) / 5, h = (H - 2 * PY) / 5;
+    [PX - 24, W - PX + 10].forEach(x => { c.fillStyle = ADC[(i + 2) % 6]; c.fillRect(x, y + 1, 14, h - 2); });
+  }
+  c.fillStyle = '#d9d4c4'; c.fillRect(PX - 10, PY - 10, W - 2 * PX + 20, H - 2 * PY + 20);
   const sw = (W - 2 * PX) / 12;
   for (let i = 0; i < 12; i++) { c.fillStyle = i % 2 ? '#1d5a34' : '#22693c'; c.fillRect(PX + i * sw, PY, sw, H - 2 * PY); }
   for (let i = 0; i < 900; i++) { c.fillStyle = r() > .5 ? 'rgba(255,255,255,.035)' : 'rgba(0,0,0,.05)'; c.fillRect(PX + r() * (W - 2 * PX), PY + r() * (H - 2 * PY), 2, 6); }
@@ -88,12 +105,28 @@ function mkPitch() {
   [[PX, PY, 0], [W - PX, PY, 1], [PX, H - PY, 3], [W - PX, H - PY, 2]].forEach(([x, y, q]) => {
     c.beginPath(); c.arc(x, y, 12, q * Math.PI / 2, (q + 1) * Math.PI / 2); c.stroke();
   });
+  c.globalAlpha = .16; c.fillStyle = '#fff'; c.font = 'bold 54px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('DS', W / 2, CY + 2); c.globalAlpha = 1;
+  [[PX, PY], [W - PX, PY], [PX, H - PY], [W - PX, H - PY]].forEach(([x, y]) => {
+    c.strokeStyle = '#fff'; c.lineWidth = 2; c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - 14); c.stroke();
+    c.fillStyle = '#ffd23f'; c.beginPath(); c.moveTo(x, y - 14); c.lineTo(x + 9, y - 10); c.lineTo(x, y - 6); c.fill();
+  });
+  [PX, W - PX].forEach(x => [CY - GW / 2, CY + GW / 2].forEach(y => {
+    c.fillStyle = '#fff'; c.beginPath(); c.arc(x, y, 4, 0, 7); c.fill(); c.strokeStyle = '#999'; c.lineWidth = 1; c.stroke();
+  }));
+  const gr = c.createRadialGradient(W / 2, CY, 120, W / 2, CY, W * .62);
+  gr.addColorStop(0, 'rgba(255,255,220,.09)'); gr.addColorStop(1, 'rgba(0,0,25,.4)');
+  c.fillStyle = gr; c.fillRect(0, 0, W, H);
+  [[26, 20], [W - 26, 20], [26, H - 20], [W - 26, H - 20]].forEach(([x, y]) => {
+    const lg = c.createRadialGradient(x, y, 0, x, y, 70);
+    lg.addColorStop(0, 'rgba(255,255,230,.9)'); lg.addColorStop(.2, 'rgba(255,255,200,.35)'); lg.addColorStop(1, 'rgba(255,255,200,0)');
+    c.fillStyle = lg; c.fillRect(x - 70, y - 70, 140, 140);
+  });
 }
 
 /* ---------- setup ---------- */
 function build() {
   P = [];
-  for (let t = 0; t < 2; t++) FORM.forEach((f, i) => {
+  for (let t = 0; t < 2; t++) (t ? FORMS['2-2'] : FM).forEach((f, i) => {
     const x = PX + (t ? 1 - f[0] : f[0]) * (W - 2 * PX), y = PY + f[1] * (H - 2 * PY);
     P.push({ t, gk: i === 0, n: i, hx: x, hy: y, x, y, vx: 0, vy: 0, dir: t ? Math.PI : 0, cd: 0, hold: 0, ph: 0, sk: SKIN[(i * 3 + t) % 5] });
   });
@@ -124,22 +157,78 @@ function hud() {
   const s = Math.max(0, time); $('clock').textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 }
 let mt;
-function msg(s) { const m = $('msg'); m.textContent = s; m.classList.add('show'); clearTimeout(mt); mt = setTimeout(() => m.classList.remove('show'), 1200); }
+function msg(s) { const m = $('msg'); m.textContent = s; m.classList.remove('show'); void m.offsetWidth; m.classList.add('show'); clearTimeout(mt); mt = setTimeout(() => m.classList.remove('show'), 1200); }
 function goal(t) {
-  score[t]++; hud(); state = 'goal'; tm = 130; cc = 1 - t; ball.vx = ball.vy = 0; msg(t === 0 ? 'GOAL!' : 'Conceded');
+  score[t]++; hud(); state = 'goal'; tm = 130; cc = 1 - t; ball.vx = ball.vy = 0; msg(t === 0 ? 'GOAL!' : 'Conceded'); confetti(t === 1 ? PX : W - PX); shake = 18;
   [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => snd(f, .25, 'triangle', .08), i * 110));
 }
 function end() {
   state = 'end'; whistle();
   $('title').textContent = score[0] > score[1] ? 'You win' : score[0] < score[1] ? 'You lose' : 'Draw';
-  $('sub').textContent = `Full time: ${score[0]} - ${score[1]}`; $('start').textContent = 'Play again'; $('menu').hidden = false;
+  const pt = stats.poss[0] + stats.poss[1] || 1, pp0 = Math.round(stats.poss[0] * 100 / pt), res = after();
+  $('sub').textContent = `Full time ${score[0]} - ${score[1]} · Shots ${stats.shots[0]}-${stats.shots[1]} · Possession ${pp0}%-${100 - pp0}% · ${res}`;
+  $('start').textContent = mode === 'c' ? 'Next match' : 'Play again'; renderMenu(); $('menu').hidden = false;
 }
+/* ---------- career, upgrades, save ---------- */
+const SK = 'dreamsoccer1', DEF = () => ({ coins: 0, up: { att: 0, def: 0, spd: 0, sta: 0 }, div: 3, season: 1, md: 0, team: 0, order: [], tab: {} });
+let SV; try { SV = JSON.parse(localStorage.getItem(SK)) || DEF(); } catch (e) { SV = DEF(); }
+const save = () => { try { localStorage.setItem(SK, JSON.stringify(SV)); } catch (e) {} };
+const UP = SV.up; let mode = 'q', cur = 1;
+function newSeason() {
+  const o = KITS.map((k, i) => i).filter(i => i !== SV.team);
+  for (let i = o.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [o[i], o[j]] = [o[j], o[i]]; }
+  SV.order = o; SV.md = 0; SV.tab = {}; KITS.forEach((k, i) => SV.tab[i] = { p: 0, w: 0, d: 0, l: 0, f: 0, a: 0, pts: 0 });
+}
+if (!SV.order.length) newSeason();
+const standings = () => Object.keys(SV.tab).map(i => ({ i: +i, ...SV.tab[i] })).sort((x, y) => y.pts - x.pts || (y.f - y.a) - (x.f - x.a) || y.f - x.f);
+function rec(a, b, ga, gb) {
+  [[a, ga, gb], [b, gb, ga]].forEach(([i, f, x]) => { const t = SV.tab[i]; t.p++; t.f += f; t.a += x; if (f > x) { t.w++; t.pts += 3; } else if (f === x) { t.d++; t.pts++; } else t.l++; });
+}
+const sim = x => Math.round(Math.random() * 2.6 * (.7 + (x * 5 % 3) * .2));
+function after() {
+  const gain = Math.round((score[0] > score[1] ? 300 : score[0] === score[1] ? 120 : 50 + score[0] * 20) * (mode === 'c' ? 1 : .5));
+  SV.coins += gain; let extra = '';
+  if (mode === 'c') {
+    const rest = KITS.map((k, i) => i).filter(i => i !== SV.team && i !== cur);
+    rec(SV.team, cur, score[0], score[1]); rec(rest[0], rest[1], sim(rest[0]), sim(rest[1])); rec(rest[2], rest[3], sim(rest[2]), sim(rest[3]));
+    if (++SV.md >= 5) {
+      const pos = standings().findIndex(r => r.i === SV.team) + 1;
+      if (pos <= 2 && SV.div > 1) { SV.div--; extra = ` Promoted to Division ${SV.div}!`; }
+      else if (pos >= 5 && SV.div < 4) { SV.div++; extra = ` Relegated to Division ${SV.div}.`; }
+      else extra = ` Season finished in position ${pos}.`;
+      SV.season++; newSeason();
+    }
+  }
+  save(); return `+${gain} coins.${extra}`;
+}
+function renderMenu() {
+  $('career').hidden = mode !== 'c'; $('menu').classList.toggle('career', mode === 'c');
+  $('coins').textContent = `Coins: ${SV.coins}`; $('ups').innerHTML = '';
+  [['att', 'Attack'], ['def', 'Defence'], ['spd', 'Speed'], ['sta', 'Stamina']].forEach(([k, n]) => {
+    const b = document.createElement('button'), l = UP[k], cost = 150 * (l + 1);
+    b.textContent = l >= 10 ? `${n} Lv10 MAX` : `${n} Lv${l}: upgrade for ${cost}`; b.disabled = l >= 10 || SV.coins < cost;
+    b.onclick = () => { SV.coins -= cost; UP[k]++; save(); renderMenu(); }; $('ups').appendChild(b);
+  });
+  if (mode === 'c') {
+    cur = SV.order[SV.md];
+    $('cinfo').textContent = `Division ${SV.div} · Season ${SV.season} · Matchday ${SV.md + 1} of 5 · Next: ${KITS[cur].n}`;
+    $('tbl').innerHTML = '<tr><th></th><th>Team</th><th>P</th><th>GD</th><th>Pts</th></tr>' +
+      standings().map((r, n) => `<tr class="${r.i === SV.team ? 'me' : ''}"><td>${n + 1}</td><td>${KITS[r.i].n}</td><td>${r.p}</td><td>${r.f - r.a}</td><td>${r.pts}</td></tr>`).join('');
+  }
+}
+document.querySelectorAll('#mode button').forEach(b => b.onclick = () => {
+  mode = b.dataset.m; if (mode === 'c') $('kit').value = SV.team;
+  document.querySelectorAll('#mode button').forEach(x => x.classList.toggle('on', x === b)); renderMenu();
+});
+$('kit').onchange = () => { if (mode === 'c') { SV.team = +$('kit').value; newSeason(); save(); renderMenu(); } };
 KITS.forEach((k, i) => $('kit').add(new Option(k.n, i)));
+$('kit').value = SV.team;
 $('start').onclick = () => {
-  const si = +$('kit').value; K = [KITS[si], KITS[(si + 1) % KITS.length]];
+  const si = mode === 'c' ? SV.team : +$('kit').value; K = [KITS[si], KITS[mode === 'c' ? cur : (si + 1) % KITS.length]];
+  if (mode === 'c') diff = SV.div >= 4 ? 0 : SV.div === 1 ? 2 : 1;
   [['ta', 0], ['tb2', 1]].forEach(([id, i]) => { $(id).style.background = K[i].c1; $(id).style.color = K[i].c2; });
   $('na').textContent = K[0].n; $('nb').textContent = K[1].n;
-  score = [0, 0]; t0 = time = +$('len').value; fr = 0; stam = 1; build(); hud(); $('menu').hidden = true; paused = 0; $('pause').textContent = 'Pause'; if (touch) goFull(); kickoff(0);
+  score = [0, 0]; t0 = time = +$('len').value; fr = 0; stam = 1; FM = FORMS[$('form').value]; stats = { shots: [0, 0], poss: [0, 0] }; build(); hud(); $('menu').hidden = true; paused = 0; $('pause').textContent = 'Pause'; if (touch) goFull(); kickoff(0);
 };
 document.querySelectorAll('#diff button').forEach(b => b.onclick = () => {
   diff = +b.dataset.d; document.querySelectorAll('#diff button').forEach(x => x.classList.toggle('on', x === b));
@@ -152,9 +241,9 @@ function shoot(p, pw, a) {
     const gx = W - PX, ga = Math.atan2(CY - p.y, gx - p.x), df = Math.atan2(Math.sin(a - ga), Math.cos(a - ga));
     if (Math.abs(df) < .7 && gx - p.x < 380) a = ga + df * .35;
   }
-  ball.o = null; p.cd = 25; ball.lt = p.t;
-  const s = 6 + pw * 9; ball.vx = Math.cos(a) * s; ball.vy = Math.sin(a) * s; ball.vz = Math.max(0, (pw - .55) * 15); ball.z = 0;
-  snd(140, .1, 'sine', .25);
+  ball.o = null; p.cd = 25; ball.lt = p.t; stats.shots[p.t]++;
+  const s = (6 + pw * 9) * (p.t ? 1 : 1 + UP.att * .02); ball.vx = Math.cos(a) * s; ball.vy = Math.sin(a) * s; ball.vz = Math.max(0, (pw - .55) * 15); ball.z = 0;
+  snd(140, .1, 'sine', .25); fx(ball.x, ball.y, '#fff', 6, 2.5, 14, 0); fx(ball.x, ball.y, '#7bd88f', 6, 3, 18, 1); if (pw > .8) shake = 6;
 }
 function pass(p, a, lob) {
   if (ball.o !== p) return;
@@ -184,7 +273,7 @@ function move(p, dx, dy, k) {
 }
 function go(p, tx, ty, k) { const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy); move(p, d < 6 ? 0 : dx / d, d < 6 ? 0 : dy / d, k); }
 function ai(p, chase) {
-  const k = p.t ? AIK[diff] : .9, gx = p.t ? PX : W - PX, fw = p.t ? -1 : 1, o = ball.o;
+  const k = p.t ? AIK[diff] : .9 * (1 + UP.spd * .015), gx = p.t ? PX : W - PX, fw = p.t ? -1 : 1, o = ball.o;
   if (p.gk) {
     const ox = p.t ? W - PX - 26 : PX + 26; let tx = ox, ty = clamp(ball.y, CY - 55, CY + 55);
     if (!o && Math.abs(ball.x - ox) < 150 && Math.abs(ball.y - CY) < 110) { tx = ball.x; ty = ball.y; }
@@ -208,8 +297,9 @@ function ai(p, chase) {
 /* ---------- 60 Hz step ---------- */
 function step() {
   if (paused || (touch && innerHeight > innerWidth)) return;
+  fxStep();
   if (state === 'kick') { if (--tm <= 0) state = 'play'; return; }
-  if (state === 'goal') { if (--tm <= 0) kickoff(cc); return; }
+  if (state === 'goal') { if (tm % 14 === 0) confetti(cc === 0 ? PX : W - PX); if (--tm <= 0) kickoff(cc); return; }
   if (state !== 'play') return;
   if (++fr % 60 === 0) {
     time--; hud();
@@ -217,6 +307,7 @@ function step() {
     if (time === t0 / 2) { msg('Half time'); return kickoff(1); }
   }
   P.forEach(p => { if (p.cd > 0) p.cd--; });
+  if (ball.o) stats.poss[ball.o.t]++;
 
   if (ball.o && ball.o.t === 0) ctrl = ball.o;
   else {
@@ -229,8 +320,8 @@ function step() {
   const iy = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0) + stick.y;
   const moving = Math.hypot(ix, iy) > .1, aim = moving ? Math.atan2(iy, ix) : ctrl.dir;
   const run = (keys.ShiftLeft || keys.ShiftRight || tb.run) && moving && stam > .03;
-  stam = clamp(stam + (run ? -.007 : .003), 0, 1);
-  move(ctrl, ix, iy, run ? 1.35 : 1);
+  stam = clamp(stam + (run ? -.007 * (1 - UP.sta * .05) : .003), 0, 1);
+  move(ctrl, ix, iy, (run ? 1.35 : 1) * (1 + UP.spd * .015));
   const sh = keys.Space || tb.shoot, ps = keys.KeyE || tb.pass, lb = keys.KeyQ || tb.lob;
   if (sh) charge = Math.min(1, charge + .025);
   else if (charge > 0) { if (ball.o === ctrl) shoot(ctrl, charge, aim); charge = 0; }
@@ -245,7 +336,7 @@ function step() {
   P.forEach(p => {
     const s = ball.o === p ? .92 : 1;
     p.x = clamp(p.x + p.vx * s, PX + 8, W - PX - 8); p.y = clamp(p.y + p.vy * s, PY + 8, H - PY - 8);
-    p.ph += Math.hypot(p.vx, p.vy) * .3;
+    p.ph += Math.hypot(p.vx, p.vy) * .3; if (Math.hypot(p.vx, p.vy) > 2.3 && (fr + p.n + p.t) % 5 === 0) fx(p.x, p.y + 7, 'rgba(210,235,190,.6)', 1, .6, 16, 0);
   });
   for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) {
     const a = P[i], b = P[j], d = dist(a, b);
@@ -257,12 +348,15 @@ function step() {
     ball.x += (o.x + Math.cos(o.dir) * 17 - ball.x) * .4; ball.y += (o.y + Math.sin(o.dir) * 17 - ball.y) * .4; ball.z = 0;
     ball.rot += Math.hypot(o.vx, o.vy) * .15;
     P.forEach(q => {
-      if (ball.o === o && q.t !== o.t && q.cd <= 0 && dist(q, o) < 19 && Math.random() < .035 * (q.t ? AIK[diff] : 1)) { ball.o = q; ball.lt = q.t; q.hold = 0; o.cd = 45; }
+      if (state === 'play' && ball.o === o && q.t !== o.t && q.cd <= 0 && dist(q, o) < 19 && Math.random() < .035 * (q.t ? AIK[diff] : 1 + UP.def * .05)) {
+        if (Math.random() < .12) { restart(o.t, clamp(o.x, PX + 15, W - PX - 15), clamp(o.y, PY + 15, H - PY - 15), 'Foul! Free kick'); return; }
+        ball.o = q; ball.lt = q.t; q.hold = 0; o.cd = 45; }
     });
   } else {
     ball.x += ball.vx; ball.y += ball.vy;
     if (ball.z > 0 || ball.vz > 0) { ball.vz -= .35; ball.z += ball.vz; if (ball.z <= 0) { ball.z = 0; ball.vz = ball.vz < -2 ? -ball.vz * .5 : 0; } }
     const f = ball.z > 0 ? .995 : .986; ball.vx *= f; ball.vy *= f; ball.rot += Math.hypot(ball.vx, ball.vy) * .15;
+    if (Math.hypot(ball.vx, ball.vy) > 8) fx(ball.x, ball.y - ball.z * .7, 'rgba(255,255,255,.75)', 1, .3, 14, 0);
     if (ball.y < PY || ball.y > H - PY) return throwIn();
     if (ball.x < PX || ball.x > W - PX) {
       const L = ball.x < PX;
@@ -275,7 +369,7 @@ function step() {
       const d = dist(p, ball);
       if (p.gk && sp >= 7 && d < 28 && ball.z < 45) {
         p.cd = 30;
-        if (Math.random() < (p.t ? SAVE[diff] : .5)) { b = p; bd = 0; } else { ball.vx *= -.5; ball.vy += (Math.random() - .5) * 6; }
+        if (Math.random() < (p.t ? SAVE[diff] : .5 + UP.def * .03)) { b = p; bd = 0; } else { ball.vx *= -.5; ball.vy += (Math.random() - .5) * 6; }
         return;
       }
       if (sp < 11 && ball.z < 12 && d < bd) { b = p; bd = d; }
@@ -284,9 +378,31 @@ function step() {
   }
 }
 
+/* ---------- effects + referee ---------- */
+const ref = { kit: { c1: '#222', c2: '#ffd23f' }, gk: 0, t: 0, sk: '#e0ac69', x: W / 2 + 60, y: CY + 60, vx: 0, vy: 0, dir: 0, ph: 0 };
+function fx(x, y, col, n, sp, life, grav) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * 7, s = Math.random() * sp;
+    FX.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - (grav ? sp * .8 : 0), l: life * (.6 + Math.random() * .4), m: life, c: col, g: grav ? .18 : 0, r: 1.5 + Math.random() * 2 });
+  }
+}
+function confetti(x) { [K[0].c1, K[1].c1, '#fff', '#ffd23f'].forEach(c => fx(x, CY, c, 14, 5, 70, 1)); }
+function fxStep() {
+  FX.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += p.g; p.vx *= .97; p.l--; });
+  FX = FX.filter(p => p.l > 0); if (FX.length > 600) FX.splice(0, 100);
+  if (shake > 0) shake--;
+  if (ball) {
+    const dx = ball.x + 45 - ref.x, dy = ball.y + 35 - ref.y;
+    ref.vx += (clamp(dx * .03, -2.6, 2.6) - ref.vx) * .1; ref.vy += (clamp(dy * .03, -2.6, 2.6) - ref.vy) * .1;
+    ref.x += ref.vx; ref.y += ref.vy; ref.ph += Math.hypot(ref.vx, ref.vy) * .3;
+    if (Math.hypot(ref.vx, ref.vy) > .3) ref.dir = Math.atan2(ref.vy, ref.vx);
+  }
+  if (Math.random() < .05) FX.push({ x: Math.random() * W, y: Math.random() < .5 ? 6 + Math.random() * (PY - 22) : H - PY + 22 + Math.random() * (PY - 28), vx: 0, vy: 0, l: 5, m: 5, c: '#fff', g: 0, r: 3 + Math.random() * 2 });
+}
+
 /* ---------- drawing ---------- */
 function drawP(p) {
-  const kit = p.gk ? { c1: p.t ? '#14b8a6' : '#f97316', c2: '#111' } : K[p.t];
+  const kit = p.kit || (p.gk ? { c1: p.t ? '#14b8a6' : '#f97316', c2: '#111' } : K[p.t]);
   g.save(); g.translate(p.x, p.y);
   g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(2, 8, 10, 5, 0, 0, 7); g.fill();
   g.rotate(p.dir);
@@ -294,7 +410,10 @@ function drawP(p) {
   g.fillStyle = '#1b1b1b'; g.beginPath(); g.ellipse(sw, -5, 4, 2.6, 0, 0, 7); g.ellipse(-sw, 5, 4, 2.6, 0, 0, 7); g.fill();
   g.fillStyle = kit.c1; g.beginPath(); g.ellipse(0, 0, 6.5, 11, 0, 0, 7); g.fill();
   g.strokeStyle = kit.c2; g.lineWidth = 2; g.stroke();
-  g.fillStyle = p.sk; g.beginPath(); g.arc(1.5, 0, 5, 0, 7); g.fill();
+  g.globalAlpha = .45; g.fillStyle = kit.c2; g.fillRect(-1.5, -9, 3, 18); g.globalAlpha = 1;
+  g.fillStyle = kit.c1; g.beginPath(); g.ellipse(-sw * .6, -10.5, 3.2, 2.4, 0, 0, 7); g.ellipse(sw * .6, 10.5, 3.2, 2.4, 0, 0, 7); g.fill();
+  g.fillStyle = p.sk; g.beginPath(); g.ellipse(-sw * .6 + 3, -10.5, 1.8, 1.5, 0, 0, 7); g.ellipse(sw * .6 + 3, 10.5, 1.8, 1.5, 0, 0, 7); g.fill();
+  g.beginPath(); g.arc(1.5, 0, 5, 0, 7); g.fill();
   g.fillStyle = '#2a1c14'; g.beginPath(); g.arc(0, 0, 5, Math.PI * .5, Math.PI * 1.5); g.fill();
   g.restore();
 }
@@ -303,13 +422,15 @@ function draw() {
   cam.x += (clamp(tx - VW / 2, 0, W - VW) - cam.x) * .1; cam.y += (clamp(ty - VH / 2, 0, H - VH) - cam.y) * .1;
   g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#000'; g.fillRect(0, 0, cv.width, cv.height);
   g.setTransform(VS, 0, 0, VS, VX, VY); g.beginPath(); g.rect(0, 0, W, H); g.clip();
-  g.save(); g.scale(Z, Z); g.translate(-cam.x, -cam.y); g.drawImage(pc, 0, 0, W, H);
+  g.save(); g.scale(Z, Z); g.translate(-cam.x + (shake ? (Math.random() - .5) * shake * .5 : 0), -cam.y + (shake ? (Math.random() - .5) * shake * .5 : 0)); g.drawImage(pc, 0, 0, W, H);
   if (ctrl && state !== 'menu' && state !== 'end') {
-    g.strokeStyle = '#fff'; g.lineWidth = 2.5; g.beginPath(); g.arc(ctrl.x, ctrl.y, 17, 0, 7); g.stroke();
+    const pu = Math.sin(performance.now() / 160) * 1.5; g.strokeStyle = K[0].c1; g.lineWidth = 3; g.beginPath(); g.arc(ctrl.x, ctrl.y, 17 + pu, 0, 7); g.stroke(); g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1; g.beginPath(); g.arc(ctrl.x, ctrl.y, 20 + pu, 0, 7); g.stroke();
     g.fillStyle = '#fff'; g.beginPath(); g.moveTo(ctrl.x, ctrl.y - 24); g.lineTo(ctrl.x - 5, ctrl.y - 32); g.lineTo(ctrl.x + 5, ctrl.y - 32); g.fill();
   }
   if (ball) { g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(ball.x + 2, ball.y + 5, 6, 3, 0, 0, 7); g.fill(); }
-  [...P].sort((a, b) => a.y - b.y).forEach(drawP);
+  [...P, ref].sort((a, b) => a.y - b.y).forEach(drawP);
+  FX.forEach(p => { g.globalAlpha = Math.max(0, Math.min(1, p.l / p.m)); g.fillStyle = p.c; g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.fill(); });
+  g.globalAlpha = 1;
   if (ctrl && charge > 0) {
     g.fillStyle = 'rgba(0,0,0,.5)'; g.fillRect(ctrl.x - 20, ctrl.y + 22, 40, 6);
     g.fillStyle = charge > .85 ? '#ff5a5f' : '#ffd23f'; g.fillRect(ctrl.x - 20, ctrl.y + 22, 40 * charge, 6);
@@ -318,7 +439,7 @@ function draw() {
     const by = ball.y - ball.z * .7;
     g.fillStyle = '#fff'; g.beginPath(); g.arc(ball.x, by, 6 + ball.z * .03, 0, 7); g.fill();
     g.strokeStyle = '#222'; g.lineWidth = 1.2; g.stroke();
-    g.fillStyle = '#222'; g.beginPath(); g.arc(ball.x + Math.cos(ball.rot) * 2.5, by + Math.sin(ball.rot) * 2.5, 2, 0, 7); g.fill();
+    g.fillStyle = '#222'; for (let i = 0; i < 3; i++) { const a = ball.rot + i * 2.094; g.beginPath(); g.arc(ball.x + Math.cos(a) * 3, by + Math.sin(a) * 3, 1.7, 0, 7); g.fill(); }
   }
   g.restore();
   // stamina + radar
@@ -350,6 +471,6 @@ function loop(t) {
   while (acc >= 1000 / 60) { step(); acc -= 1000 / 60; }
   draw(); requestAnimationFrame(loop);
 }
-mkPitch(); build(); hud(); kickoff(0); state = 'menu'; ctrl = null;
+renderMenu(); mkPitch(); build(); hud(); kickoff(0); state = 'menu'; ctrl = null;
 requestAnimationFrame(loop);
 })();
